@@ -21,7 +21,7 @@ export default function Page() {
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [loadingAnswer, setLoadingAnswer] = useState(false);
-  const [showPanel, setShowPanel] = useState(false);
+  const [showPanel, setShowPanel] = useState(true);
   const [strictMode, setStrictMode] = useState(false);
   const [allowInterp, setAllowInterp] = useState(true);
 
