@@ -1,0 +1,18 @@
+{
+  "name": "rules-assistant",
+  "private": true,
+  "scripts": {
+    "prebuild": "node -e \"const {execSync}=require('child_process'); execSync('pwd && ls -R && echo ---CAT next.config.js--- && cat next.config.js', {stdio:'inherit'})\"",
+    "build": "next build",
+    "start": "next start",
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "next": "14.2.5",
+    "openai": "^4.56.0",
+    "pdf-parse": "^1.1.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}
