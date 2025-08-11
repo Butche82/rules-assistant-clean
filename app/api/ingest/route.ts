@@ -1,4 +1,6 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBGGCollection, discoverRulebookLinks } from "../../../lib/sources";
 import { indexPdfForGame, resetIndex, gamesDb } from "../../../lib/vector";
