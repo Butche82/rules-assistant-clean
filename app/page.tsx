@@ -24,6 +24,7 @@ export default function Page() {
   const [showPanel, setShowPanel] = useState(true);
   const [strictMode, setStrictMode] = useState(false);
   const [allowInterp, setAllowInterp] = useState(true);
+  const [includeExpansions, setIncludeExpansions] = useState(false);
 
   const endRef = useRef<HTMLDivElement|null>(null);
   const scrollToEnd = () => endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -40,17 +41,20 @@ export default function Page() {
   };
 
   const sync = async () => {
-    setSyncing(true);
-    try {
-      const body: any = { mode: sourceMode };
+  setSyncing(true);
+  try {
+    let cursor = 0;
+    let hasMore = true;
+    let total = 0;
+    while (hasMore) {
+      const body: any = { mode: sourceMode, cursor, reset: cursor === 0, batchSize: 40, includeExpansions };
       if (sourceMode === "web") body.bggUser = bggUser;
-      if (sourceMode === "urls") body.urls = urlList.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-      await api("/api/ingest", { method: "POST", body: JSON.stringify(body) });
-      await loadGames();
-    } catch (e:any) {
-      alert("Sync failed: " + (e?.message || e));
-    } finally { setSyncing(false); }
-  };
+      if (sourceMode === "urls") body.urls = urlList.split(/\n+/).map(s => s.trim()).filter(Boolean);
+
+      const data = await api("/api/ingest", { method: "POST", body: JSON.stringify(body) });
+      total = data.total ?? total;
+      cursor = data.cursor ?? (cursor + 40);
+      hasMore = !!data.hasMore;
 
   const ask = async () => {
     if (!q.trim()) return;
