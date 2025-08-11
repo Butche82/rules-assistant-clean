@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface GameMeta { id: string; title: string; year?: number; designers?: string[]; fileCount: number; }
 interface ChatTurn { role: "user" | "assistant"; content: string; citations?: Array<{ gameId: string; page: number; snippet: string }>; }
