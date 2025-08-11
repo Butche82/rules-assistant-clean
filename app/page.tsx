@@ -78,6 +78,12 @@ export default function Page() {
   };
 
   return (
+    <div className="container">
+  <div className="two-col">
+    {/* left rail */} {/* chat panel */}
+  </div>
+</div>
+
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4 sm:p-6">
       <div className="mx-auto max-w-7xl mb-4 flex items-center justify-between">
         <div className="text-lg sm:text-xl font-semibold tracking-tight">Rules Assistant</div>
