@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config) => {
-    // Don’t try to bundle node-canvas (not needed for text extraction)
+    config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
+      // Stop pdfjs from trying to load a real worker or canvas
       canvas: false,
-      'canvas-prebuilt': false,
-      'pdfjs-dist/build/pdf.worker.js': false,
-      'pdfjs-dist/legacy/build/pdf.worker.js': false,
+      "canvas-prebuilt": false,
+      "pdfjs-dist/build/pdf.worker.js": require.resolve("./lib/pdf.worker.stub.js"),
+      "pdfjs-dist/legacy/build/pdf.worker.js": require.resolve("./lib/pdf.worker.stub.js"),
     };
     return config;
   },
