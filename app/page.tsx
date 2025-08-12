@@ -31,9 +31,10 @@ async function api(path: string, opts: RequestInit = {}) {
 
 export default function Page() {
   // Source controls
-  const [sourceMode, setSourceMode] = useState<"web" | "urls">("web");
+  const [sourceMode, setSourceMode] = useState<"web" | "urls" | "drive">("web");
   const [bggUser, setBggUser] = useState("Butcha82");
   const [urlList, setUrlList] = useState("");
+  const [driveFolderId, setDriveFolderId] = useState("");
 
   // Games & chat
   const [games, setGames] = useState<GameMeta[]>([]);
