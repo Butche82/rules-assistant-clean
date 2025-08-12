@@ -1,4 +1,5 @@
-import { google } from "googleapis";
+// lib/drive.ts
+import { google, drive_v3 } from "googleapis";
 
 function getServiceAccountJson(): any {
   const raw = process.env.GDRIVE_SERVICE_ACCOUNT_JSON;
@@ -22,23 +23,38 @@ export async function listDrivePdfs(folderId: string) {
   const drive = getDriveClient();
   const out: Array<{ id: string; name: string; modifiedTime?: string; size?: number }> = [];
   let pageToken: string | undefined = undefined;
+
   do {
-    const res = await drive.files.list({
+    // Avoid the TS “res implicitly any” by giving the data a type
+    const resp = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/pdf' and trashed=false`,
       fields: "nextPageToken, files(id, name, modifiedTime, size)",
       pageSize: 1000,
       pageToken,
     });
-    res.data.files?.forEach((f) => out.push({ id: f.id!, name: f.name!, modifiedTime: f.modifiedTime!, size: Number(f.size || 0) }));
-    pageToken = res.data.nextPageToken || undefined;
+    const data = resp.data as drive_v3.Schema$FileList;
+
+    (data.files || []).forEach((f) =>
+      out.push({
+        id: f.id!,
+        name: f.name!,
+        modifiedTime: f.modifiedTime!,
+        size: Number(f.size || 0),
+      })
+    );
+    pageToken = data.nextPageToken || undefined;
   } while (pageToken);
+
   return out;
 }
 
 export async function downloadDriveFile(fileId: string): Promise<Buffer> {
   const drive = getDriveClient();
-  const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
-  return Buffer.from(res.data as ArrayBuffer);
+  const resp = await drive.files.get(
+    { fileId, alt: "media" },
+    { responseType: "arraybuffer" }
+  );
+  return Buffer.from(resp.data as ArrayBuffer);
 }
 
 export function guessTitleFromFilename(name: string): { id: string; title: string } {
