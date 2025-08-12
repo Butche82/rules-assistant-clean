@@ -1,9 +1,19 @@
+// lib/vector.ts
 import { createHash } from "crypto";
 import { fetchPdf, extractTextByPage } from "./pdf";
 import OpenAI from "openai";
 
 export const gamesDb: Record<string, { id: string; title: string; fileCount: number }> = {};
-export type Row = { game_id: string; game_title: string; source_url: string; page: number; text: string; doc_hash: string };
+
+export type Row = {
+  game_id: string;
+  game_title: string;
+  source_url: string; // informational only
+  page: number;
+  text: string;
+  doc_hash: string;
+};
+
 let rows: Row[] = [];
 let vectors: Float32Array[] = [];
 
@@ -15,14 +25,14 @@ function chunk(text: string, max = 1000, overlap = 150) {
   let i = 0;
   while (i < clean.length) {
     out.push(clean.slice(i, i + max));
-    i += max - overlap;
+    i += Math.max(1, max - overlap);
   }
   return out;
 }
 
 async function embed(texts: string[]): Promise<Float32Array[]> {
   if (!process.env.OPENAI_API_KEY) {
-    // fallback: pseudo-embeddings by hashing (demo only)
+    // fallback: pseudo-embeddings so the app still works without a key
     return texts.map((t) => {
       const h = createHash("sha1").update(t).digest();
       const vec = new Float32Array(256);
@@ -30,7 +40,10 @@ async function embed(texts: string[]): Promise<Float32Array[]> {
       return vec;
     });
   }
-  const res = await openai.embeddings.create({ model: "text-embedding-3-small", input: texts });
+  const res = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: texts,
+  });
   return res.data.map((d) => Float32Array.from(d.embedding));
 }
 
@@ -54,9 +67,11 @@ export function resetIndex() {
 export async function indexPdfForGame(gameId: string, title: string, url: string): Promise<boolean> {
   const buf = await fetchPdf(url);
   if (!buf) return false;
-  return indexPdfBufferForGame(gameId, title, url, buf);
+  // ⬇️ Call the 3-arg buffer indexer
+  return indexPdfBufferForGame(gameId, title, buf);
 }
 
+// 3-arg buffer indexer used by both Drive and Web paths
 export async function indexPdfBufferForGame(
   gameId: string,
   title: string,
@@ -68,12 +83,13 @@ export async function indexPdfBufferForGame(
   const hash = createHash("sha1").update(buf).digest("hex");
 
   for (const p of pages) {
-    if (!p.text.trim()) continue;
-    for (const c of chunk(p.text)) {
+    const text = (p.text || "").trim();
+    if (!text) continue;
+    for (const c of chunk(text)) {
       newRows.push({
         game_id: gameId,
         game_title: title,
-        source_url: `drive://${hash}`,
+        source_url: `doc://${hash}`, // generic; we’re indexing from a buffer
         page: p.page,
         text: c,
         doc_hash: hash,
@@ -81,6 +97,7 @@ export async function indexPdfBufferForGame(
       toEmbed.push(c);
     }
   }
+
   if (!toEmbed.length) return false;
   const embs = await embed(toEmbed);
   rows.push(...newRows);
@@ -88,34 +105,54 @@ export async function indexPdfBufferForGame(
   return true;
 }
 
-export async function retrieveAndAnswer(opts: { query: string; gameFilter?: string[]; strict?: boolean; allowInterpretation?: boolean }) {
+export async function retrieveAndAnswer(opts: {
+  query: string;
+  gameFilter?: string[];
+  strict?: boolean;
+  allowInterpretation?: boolean;
+}) {
   const { query, gameFilter, strict = true, allowInterpretation = true } = opts;
-  if (!rows.length) return { answer: "No rulebooks indexed yet. Hit Sync first.", citations: [] };
+
+  if (!rows.length) {
+    return { answer: "No rulebooks indexed yet. Hit Sync first.", citations: [] };
+  }
+
   const [qVec] = await embed([query]);
+
   const scored = rows
     .map((r, i) => ({ i, r, s: cosineSim(qVec, vectors[i]) }))
     .filter((x) => !gameFilter?.length || gameFilter.includes(x.r.game_id))
     .sort((a, b) => b.s - a.s)
-    .slice(0, 10);
+    .slice(0, 12);
 
   if (!scored.length) {
-    if (strict) return { answer: "I couldn't find anything relevant in your indexed rulebooks for that query.", citations: [] };
-    if (allowInterpretation) return { answer: "No direct cites found; here’s a reasonable ruling based on common patterns and similar games: … (advisory)", citations: [] };
+    if (strict) {
+      return { answer: "I couldn't find anything relevant in your indexed rulebooks for that query.", citations: [] };
+    }
+    if (allowInterpretation) {
+      return { answer: "No direct cites found; here’s a reasonable ruling based on common patterns in similar games (advisory).", citations: [] };
+    }
     return { answer: "No matching sources.", citations: [] };
   }
 
   const seen = new Set<string>();
-  const snippets: string[] = [];
+  const bullets: string[] = [];
   const citations: { gameId: string; page: number; snippet: string }[] = [];
+
   for (const x of scored.slice(0, 6)) {
-    const k = `${x.r.game_id}-${x.r.page}-${x.r.source_url}`;
+    const k = `${x.r.game_id}-${x.r.page}-${x.r.doc_hash}`;
     if (seen.has(k)) continue;
     seen.add(k);
+
     const snip = x.r.text.slice(0, 350).trim();
-    snippets.push(`• ${x.r.game_title} — p.${x.r.page}: ${snip}`);
+    bullets.push(`• ${x.r.game_title} — p.${x.r.page}: ${snip}`);
     citations.push({ gameId: x.r.game_id, page: x.r.page, snippet: x.r.text.slice(0, 180).trim() });
   }
-  let answer = `Based on your indexed rulebooks, here are the most relevant passages (with pages):\n\n${snippets.join("\n")}`;
-  if (!strict && allowInterpretation) answer += "\n\nInterpretation: Given the above, a fair edge-case ruling would be … (advisory).";
+
+  let answer = `Based on your indexed rulebooks, here are the most relevant passages (with pages):\n\n${bullets.join("\n")}`;
+  if (!strict && allowInterpretation) {
+    answer += `\n\nInterpretation: Given these citations, a fair edge-case ruling would be … (advisory).`;
+  }
+
   return { answer, citations };
 }
