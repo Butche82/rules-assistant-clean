@@ -57,7 +57,11 @@ export async function indexPdfForGame(gameId: string, title: string, url: string
   return indexPdfBufferForGame(gameId, title, url, buf);
 }
 
-export async function indexPdfBufferForGame(gameId: string, title: string, sourceUrl: string, buf: Buffer): Promise<boolean> {
+export async function indexPdfBufferForGame(
+  gameId: string,
+  title: string,
+  buf: Buffer
+): Promise<boolean> {
   const pages = await extractTextByPage(buf);
   const toEmbed: string[] = [];
   const newRows: Row[] = [];
@@ -66,7 +70,14 @@ export async function indexPdfBufferForGame(gameId: string, title: string, sourc
   for (const p of pages) {
     if (!p.text.trim()) continue;
     for (const c of chunk(p.text)) {
-      newRows.push({ game_id: gameId, game_title: title, source_url: sourceUrl, page: p.page, text: c, doc_hash: hash });
+      newRows.push({
+        game_id: gameId,
+        game_title: title,
+        source_url: `drive://${hash}`,
+        page: p.page,
+        text: c,
+        doc_hash: hash,
+      });
       toEmbed.push(c);
     }
   }
