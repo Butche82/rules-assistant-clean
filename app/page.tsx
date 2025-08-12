@@ -78,10 +78,10 @@ export default function Page() {
     setSyncing(true);
     try {
       const body: any = { mode: sourceMode };
-      if (sourceMode === "web") body.bggUser = bggUser;
-      if (sourceMode === "urls") body.urls = urlList.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-      await api("/api/ingest", { method: "POST", body: JSON.stringify(body) });
-      await loadGames();
+      if (sourceMode === "web")  body.bggUser = bggUser;
+if (sourceMode === "urls") body.urls = urlList.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+if (sourceMode === "drive") {
+  if (driveFolderId.trim()) body.folderId = driveFolderId.trim();
     } catch (e: any) {
       alert("Sync failed: " + (e?.message || e));
     } finally {
@@ -162,6 +162,21 @@ export default function Page() {
                   <textarea value={urlList} onChange={(e) => setUrlList(e.target.value)} className="w-full min-h-[120px] rounded-xl border px-3 py-2" placeholder="https://publisher.com/game/rulebook.pdf\nhttps://…" />
                 </div>
               )}
+
+              {sourceMode === "drive" && (
+  <div className="space-y-2">
+    <label className="block text-sm text-slate-600">Google Drive Folder ID (optional)</label>
+    <input
+      value={driveFolderId}
+      onChange={(e) => setDriveFolderId(e.target.value)}
+      className="w-full rounded-xl border px-3 py-2"
+      placeholder="Leave blank to use env GDRIVE_FOLDER_ID"
+    />
+    <div className="text-xs text-slate-500">
+      Share the folder with your service account email (Viewer). We’ll index PDFs inside it.
+    </div>
+  </div>
+)}
 
               <button onClick={sync} disabled={syncing || (sourceMode === "web" && !bggUser)} className="rounded-xl border px-3 py-2 text-sm bg-slate-900 text-white disabled:opacity-50">
                 {syncing ? (<span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Syncing…</span>) : "Sync"}
