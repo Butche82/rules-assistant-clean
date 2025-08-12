@@ -14,15 +14,32 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Extract text per page using PDF.js (expects Uint8Array)
+// Normalize to a plain Uint8Array (not a Node Buffer)
+function toUint8Array(input: Buffer | Uint8Array): Uint8Array {
+  const anyIn = input as any;
+  const B: any = (globalThis as any).Buffer;
+
+  // If it's a Node Buffer, create a zero-copy Uint8Array view
+  if (B && typeof B.isBuffer === "function" && B.isBuffer(anyIn)) {
+    return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
+  }
+
+  // If it's already a Uint8Array, return a view (ensures plain typed array)
+  if (anyIn instanceof Uint8Array) {
+    return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
+  }
+
+  // Last resort: coerce
+  return new Uint8Array(anyIn as ArrayBufferLike);
+}
+
+// Extract text per page using PDF.js
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  // If not already Uint8Array, coerce it (works for Buffer too)
-  const data: Uint8Array =
-    input instanceof Uint8Array ? input : new Uint8Array(input as any);
+  const data = toUint8Array(input);
 
-  // Use legacy build; we stubbed worker/canvas in next.config.js
+  // Use legacy build; worker/canvas are stubbed in next.config.js
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
   const doc = await pdfjs.getDocument({ data }).promise;
 
