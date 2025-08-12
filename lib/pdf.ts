@@ -18,13 +18,11 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  // Convert Buffer → Uint8Array without copying
-  const data =
-    input instanceof Uint8Array
-      ? input
-      : new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  // If not already Uint8Array, coerce it (works for Buffer too)
+  const data: Uint8Array =
+    input instanceof Uint8Array ? input : new Uint8Array(input as any);
 
-  // Use legacy build; we stubbed the worker/canvas in next.config.js
+  // Use legacy build; we stubbed worker/canvas in next.config.js
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
   const doc = await pdfjs.getDocument({ data }).promise;
 
