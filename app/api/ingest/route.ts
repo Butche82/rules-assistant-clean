@@ -15,21 +15,37 @@ export async function POST(req: NextRequest) {
   resetIndex();
   Object.keys(gamesDb).forEach((k) => delete (gamesDb as any)[k]);
 
-  if (mode === "drive") {
-    const folderId = process.env.GDRIVE_FOLDER_ID;
-    if (!folderId) return NextResponse.json({ error: "Missing env GDRIVE_FOLDER_ID" }, { status: 400 });
+ if (mode === "drive") {
+  try {
+    const { listDrivePdfs, downloadDriveFile, guessTitleFromFilename } =
+      await import("../../../lib/drive");
+    const { indexPdfBufferForGame } = await import("../../../lib/vector");
+
+    const folderId = (body.folderId as string) || process.env.GDRIVE_FOLDER_ID;
+    if (!folderId) {
+      return NextResponse.json({ error: "GDRIVE_FOLDER_ID missing" }, { status: 400 });
+    }
 
     const files = await listDrivePdfs(folderId);
     for (const f of files) {
-      const { id, title } = guessTitleFromFilename(f.name);
-      if (!gamesDb[id]) gamesDb[id] = { id, title, fileCount: 0 };
+      const { id: gameId, title } = guessTitleFromFilename(f.name || "Unknown");
+      if (!gamesDb[gameId]) gamesDb[gameId] = { id: gameId, title, fileCount: 0 };
 
-      const buf = await downloadDriveFile(f.id);
-      const ok = await indexPdfBufferForGame(id, title, `gdrive://${f.id}`, buf);
-      if (ok) gamesDb[id].fileCount += 1;
+      const buf = await downloadDriveFile(f.id!);
+      const ok = await indexPdfBufferForGame(gameId, title, buf); // 3 args
+      if (ok) gamesDb[gameId].fileCount += 1;
     }
 
     return NextResponse.json({ ok: true, games: Object.values(gamesDb) });
+  } catch (e: any) {
+    console.error("Drive ingest error:", e);
+    return NextResponse.json(
+      { error: "drive_ingest_failed", message: e?.message || String(e) },
+      { status: 500 }
+    );
+  }
+}
+
   }
 
   if (mode === "web") {
