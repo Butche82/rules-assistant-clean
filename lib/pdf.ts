@@ -14,15 +14,18 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Extract text per page using pdf2json (server-friendly, no worker)
+// Extract text per page using pdf2json (loaded via runtime require)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  // pdf2json expects a Buffer; coerce if needed
+  // pdf2json expects a Buffer
   const buf: Buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
 
-  const mod: any = await import("pdf2json");
-  const PDFParserCtor = (mod && (mod.default || (mod as any).PDFParser)) || (mod as any);
+  // 👇 prevent webpack from bundling pdf2json; load from node_modules at runtime
+  const req: any = (eval as any)("require");
+  const mod: any = req("pdf2json");
+  const PDFParserCtor =
+    (mod && (mod.default || (mod as any).PDFParser)) || (mod as any);
 
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParserCtor();
