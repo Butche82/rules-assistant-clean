@@ -18,28 +18,53 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
 function toUint8Array(input: Buffer | Uint8Array): Uint8Array {
   const anyIn = input as any;
   const B: any = (globalThis as any).Buffer;
+
+  // If it's a Node Buffer, create a zero-copy Uint8Array view
   if (B && typeof B.isBuffer === "function" && B.isBuffer(anyIn)) {
     return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
   }
+  // If it's already a Uint8Array, return a plain view
   if (anyIn instanceof Uint8Array) {
     return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
   }
+  // Last resort
   return new Uint8Array(anyIn as ArrayBufferLike);
 }
 
-// Extract text per page using PDF.js (disable worker in Node)
+// Extract text per page using PDF.js (no worker in serverless)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
   const data = toUint8Array(input);
 
+  // Use legacy build; we disabled worker/canvas in next.config.js
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
-  // Force no-worker mode to avoid loading pdf.worker.js in serverless
   if (pdfjs.GlobalWorkerOptions) {
+    // Prevent attempts to load pdf.worker.js in server
     pdfjs.GlobalWorkerOptions.workerSrc = undefined;
   }
 
-  const doc = await pdfjs.getDocument({ data, disableWorker: true }).promise;
+  const loadingTask = pdfjs.getDocument({ data, disableWorker: true });
+  const doc = await loadingTask.promise;
 
   const pages: { page: number; text: string }[] = [];
-  for (let p = 1; p <= d
+  const numPages = doc.numPages || 0;
+
+  for (let p = 1; p <= numPages; p++) {
+    const page = await doc.getPage(p);
+    const content = await page.getTextContent();
+    const items = (content.items || []) as any[];
+    const text = items
+      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    pages.push({ page: p, text });
+  }
+
+  if (typeof (doc as any).destroy === "function") {
+    (doc as any).destroy();
+  }
+
+  return pages;
+}
