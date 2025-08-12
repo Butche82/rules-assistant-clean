@@ -141,32 +141,37 @@ export default function Page() {
               <div className="text-sm text-slate-600 mt-1">Auto-pull public rulebooks via BGG collection or paste URLs directly.</div>
             </div>
             <div className="p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => setSourceMode("web")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "web" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Web (auto)</button>
-                <button onClick={() => setSourceMode("urls")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "urls" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Paste URLs</button>
-              </div>
+  <div className="flex flex-wrap gap-2">
+    <button onClick={() => setSourceMode("web")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "web" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Web (auto)</button>
+    <button onClick={() => setSourceMode("drive")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "drive" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Drive (server)</button>
+    <button onClick={() => setSourceMode("urls")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "urls" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Paste URLs</button>
+  </div>
 
               {sourceMode === "web" && (
-                <div className="space-y-2">
-                  <label className="block text-sm text-slate-600">BGG Username</label>
-                  <input value={bggUser} onChange={(e) => setBggUser(e.target.value)} className="w-full rounded-xl border px-3 py-2" placeholder="Your BGG username" />
-                </div>
-              )}
+    <div className="space-y-2">
+      <label className="block text-sm text-slate-600">BGG Username</label>
+      <input value={bggUser} onChange={(e) => setBggUser(e.target.value)} className="w-full rounded-xl border px-3 py-2" placeholder="Your BGG username" />
+    </div>
+  )}
 
               {sourceMode === "urls" && (
-                <div className="space-y-2">
-                  <label className="block text-sm text-slate-600">URLs (one per line)</label>
-                  <textarea value={urlList} onChange={(e) => setUrlList(e.target.value)} className="w-full min-h-[120px] rounded-xl border px-3 py-2" placeholder="https://publisher.com/game/rulebook.pdf\nhttps://…" />
-                </div>
-              )}
-
+    <div className="space-y-2">
+      <label className="block text-sm text-slate-600">URLs (one per line)</label>
+      <textarea value={urlList} onChange={(e) => setUrlList(e.target.value)} className="w-full min-h-[120px] rounded-xl border px-3 py-2" placeholder="https://publisher.com/game/rulebook.pdf\nhttps://…" />
+    </div>
+  )}
+{sourceMode === "drive" && (
+    <div className="text-sm text-slate-600">
+      Uses the **server-configured** Google Drive folder. Just click <strong>Sync</strong>.
+    </div>
+  )}
+              
               <button onClick={sync} disabled={syncing || (sourceMode === "web" && !bggUser)} className="rounded-xl border px-3 py-2 text-sm bg-slate-900 text-white disabled:opacity-50">
-                {syncing ? (<span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Syncing…</span>) : "Sync"}
-              </button>
+    {syncing ? (<span className="inline-flex items-center gap-2">Syncing…</span>) : "Sync"}
+  </button>
 
-              <div className="text-xs text-slate-500">We only index public, permissible files from trusted publishers.</div>
-            </div>
-          </div>
+              <div className="text-xs text-slate-500">We only index public, permissible files (Drive files must be yours).</div>
+</div>
 
           <div className="rounded-2xl border bg-white shadow-sm">
             <div className="p-4 border-b"><div className="text-base font-semibold">Your Games</div></div>
