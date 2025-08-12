@@ -143,9 +143,11 @@ export default function Page() {
             </div>
             <div className="p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setSourceMode("web")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "web" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Web (auto)</button>
-                <button onClick={() => setSourceMode("urls")} className={`px-3 py-1.5 rounded-full border ${sourceMode === "urls" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Paste URLs</button>
-              </div>
+  <button onClick={() => setSourceMode("web")}  className={`px-3 py-1.5 rounded-full border ${sourceMode==="web"  ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Web (auto)</button>
+  <button onClick={() => setSourceMode("urls")} className={`px-3 py-1.5 rounded-full border ${sourceMode==="urls" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Paste URLs</button>
+  <button onClick={() => setSourceMode("drive")} className={`px-3 py-1.5 rounded-full border ${sourceMode==="drive" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}>Drive (server)</button>
+</div>
+
 
               {sourceMode === "web" && (
                 <div className="space-y-2">
