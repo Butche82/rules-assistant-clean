@@ -1,4 +1,5 @@
 // lib/pdf.ts
+
 // Fetch PDF bytes from a URL
 export async function fetchPdf(url: string): Promise<Buffer | null> {
   try {
@@ -23,19 +24,28 @@ export async function extractTextByPage(
       ? input
       : new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
 
-  // Use legacy build; we stubbed the worker + canvas in next.config.js
+  // Use legacy build; we stubbed the worker/canvas in next.config.js
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
   const doc = await pdfjs.getDocument({ data }).promise;
 
   const pages: { page: number; text: string }[] = [];
+
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const content = await page.getTextContent();
-    const text = (content.items as any[])
+    const items = (content.items || []) as any[];
+    const text = items
       .map((it: any) => (typeof it.str === "string" ? it.str : ""))
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
+
     pages.push({ page: p, text });
   }
-  if (typeof doc.destroy ===
+
+  if (typeof (doc as any).destroy === "function") {
+    (doc as any).destroy();
+  }
+
+  return pages;
+}
