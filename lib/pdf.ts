@@ -14,57 +14,35 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Normalize to a plain Uint8Array (not a Node Buffer)
-function toUint8Array(input: Buffer | Uint8Array): Uint8Array {
-  const anyIn = input as any;
-  const B: any = (globalThis as any).Buffer;
-
-  // If it's a Node Buffer, create a zero-copy Uint8Array view
-  if (B && typeof B.isBuffer === "function" && B.isBuffer(anyIn)) {
-    return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
-  }
-  // If it's already a Uint8Array, return a plain view
-  if (anyIn instanceof Uint8Array) {
-    return new Uint8Array(anyIn.buffer, anyIn.byteOffset, anyIn.byteLength);
-  }
-  // Last resort
-  return new Uint8Array(anyIn as ArrayBufferLike);
-}
-
-// Extract text per page using PDF.js (no worker in serverless)
+// Extract text per page using pdf2json (server-friendly, no worker)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  const data = toUint8Array(input);
+  // pdf2json expects a Buffer; coerce if needed
+  const buf: Buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
 
-  // Use legacy build; we disabled worker/canvas in next.config.js
-  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
-  if (pdfjs.GlobalWorkerOptions) {
-    // Prevent attempts to load pdf.worker.js in server
-    pdfjs.GlobalWorkerOptions.workerSrc = undefined;
-  }
+  const mod: any = await import("pdf2json");
+  const PDFParserCtor = (mod && (mod.default || (mod as any).PDFParser)) || (mod as any);
 
-  const loadingTask = pdfjs.getDocument({ data, disableWorker: true });
-  const doc = await loadingTask.promise;
-
-  const pages: { page: number; text: string }[] = [];
-  const numPages = doc.numPages || 0;
-
-  for (let p = 1; p <= numPages; p++) {
-    const page = await doc.getPage(p);
-    const content = await page.getTextContent();
-    const items = (content.items || []) as any[];
-    const text = items
-      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
-    pages.push({ page: p, text });
-  }
-
-  if (typeof (doc as any).destroy === "function") {
-    (doc as any).destroy();
-  }
-
-  return pages;
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParserCtor();
+    pdfParser.on("pdfParser_dataError", (err: any) =>
+      reject(err?.parserError || err || new Error("pdf2json error"))
+    );
+    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+      const pages = (pdfData?.Pages || []).map((page: any, idx: number) => {
+        let text = "";
+        const texts = page?.Texts || [];
+        for (const t of texts) {
+          const runs = t?.R || [];
+          for (const r of runs) {
+            if (typeof r.T === "string") text += decodeURIComponent(r.T) + " ";
+          }
+        }
+        return { page: idx + 1, text: text.replace(/\s+/g, " ").trim() };
+      });
+      resolve(pages);
+    });
+    pdfParser.parseBuffer(buf);
+  });
 }
