@@ -1,4 +1,5 @@
 // lib/pdf.ts
+// Fetch PDF bytes from a URL
 export async function fetchPdf(url: string): Promise<Buffer | null> {
   try {
     const r = await fetch(url, { cache: "no-store" });
@@ -12,20 +13,25 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-export async function extractTextByPage(buf: Buffer): Promise<{ page: number; text: string }[]> {
-  // dynamic import so Next doesn't evaluate pdf-parse during build
-  const pdf = (await import("pdf-parse")).default;
+// Extract text, page-by-page, using PDF.js (no pdf-parse)
+export async function extractTextByPage(
+  buf: Buffer
+): Promise<{ page: number; text: string }[]> {
+  // Dynamic import so Next doesn’t try to bundle browser worker
+  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
+  const doc = await pdfjs.getDocument({ data: buf }).promise;
 
-  const data = await pdf(buf);
-  const raw = (data.text || "").replace(/\r/g, "\n");
-
-  const approxPageSize = 2000;
-  const chunks: { page: number; text: string }[] = [];
-  let i = 0, p = 1;
-  while (i < raw.length) {
-    chunks.push({ page: p++, text: raw.slice(i, i + approxPageSize) });
-    i += approxPageSize - 200;
+  const pages: { page: number; text: string }[] = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const content = await page.getTextContent();
+    const text = (content.items as any[])
+      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    pages.push({ page: p, text });
   }
-  if (!chunks.length) chunks.push({ page: 1, text: raw });
-  return chunks;
+  if (typeof doc.destroy === "function") doc.destroy();
+  return pages;
 }
