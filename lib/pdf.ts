@@ -13,13 +13,19 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Extract text, page-by-page, using PDF.js (no pdf-parse)
+// Extract text per page using PDF.js (expects Uint8Array)
 export async function extractTextByPage(
-  buf: Buffer
+  input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  // Dynamic import so Next doesn’t try to bundle browser worker
+  // Convert Buffer → Uint8Array without copying
+  const data =
+    input instanceof Uint8Array
+      ? input
+      : new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+
+  // Use legacy build; we stubbed the worker + canvas in next.config.js
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
-  const doc = await pdfjs.getDocument({ data: buf }).promise;
+  const doc = await pdfjs.getDocument({ data }).promise;
 
   const pages: { page: number; text: string }[] = [];
   for (let p = 1; p <= doc.numPages; p++) {
@@ -32,6 +38,4 @@ export async function extractTextByPage(
       .trim();
     pages.push({ page: p, text });
   }
-  if (typeof doc.destroy === "function") doc.destroy();
-  return pages;
-}
+  if (typeof doc.destroy ===
