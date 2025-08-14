@@ -1,6 +1,5 @@
 // lib/vector.ts
 import { createHash } from "crypto";
-import { fetchPdf, extractTextByPage } from "./pdf";
 import OpenAI from "openai";
 
 export const gamesDb: Record<string, { id: string; title: string; fileCount: number }> = {};
