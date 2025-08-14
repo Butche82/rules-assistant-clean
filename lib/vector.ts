@@ -62,15 +62,10 @@ export function resetIndex() {
 }
 
 export async function indexPdfForGame(gameId: string, title: string, url: string): Promise<boolean> {
-  const pdfMod: any = await import("./pdf");
+  const pdfMod: any = await import("./pdf");   // runtime import so server ships parser deps
   const buf = await pdfMod.fetchPdf(url);
   if (!buf) return false;
   return indexPdfBufferForGame(gameId, title, buf);
-}
-
-export async function indexPdfBufferForGame(gameId: string, title: string, buf: Buffer): Promise<boolean> {
-  const pdfMod: any = await import("./pdf");
-  const pages = await pdfMod.extractTextByPage(buf);
 }
 
 // 3-arg buffer indexer used by both Drive and Web paths
@@ -79,7 +74,7 @@ export async function indexPdfBufferForGame(
   title: string,
   buf: Buffer
 ): Promise<boolean> {
-  const pdfMod: any = await import("./pdf");     // <-- cast to any to appease TS
+  const pdfMod: any = await import("./pdf");
   const pages = await pdfMod.extractTextByPage(buf);
 
   const toEmbed: string[] = [];
