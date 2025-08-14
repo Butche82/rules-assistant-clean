@@ -62,8 +62,8 @@ export function resetIndex() {
 }
 
 export async function indexPdfForGame(gameId: string, title: string, url: string): Promise<boolean> {
-  const { fetchPdf } = await import("./pdf");          // ⬅️ runtime import
-  const buf = await fetchPdf(url);
+  const pdfMod: any = await import("./pdf");     // <-- cast to any to appease TS
+  const buf = await pdfMod.fetchPdf(url);
   if (!buf) return false;
   return indexPdfBufferForGame(gameId, title, buf);
 }
@@ -74,8 +74,8 @@ export async function indexPdfBufferForGame(
   title: string,
   buf: Buffer
 ): Promise<boolean> {
-  const { extractTextByPage } = await import("./pdf"); // ⬅️ runtime import
-  const pages = await extractTextByPage(buf);
+  const pdfMod: any = await import("./pdf");     // <-- cast to any to appease TS
+  const pages = await pdfMod.extractTextByPage(buf);
 
   const toEmbed: string[] = [];
   const newRows: Row[] = [];
