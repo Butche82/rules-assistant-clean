@@ -15,37 +15,38 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Extract text per page using pdf2json (required at runtime from node_modules)
+// Extract text per page using pdf-parse (loaded at runtime, not bundled)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
   const buf: Buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
 
-  // Force real Node resolution from app root (node_modules)
+  // Load from node_modules at runtime so Vercel ships it but doesn't bundle it
   const requireNode = createRequire(process.cwd() + "/");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mod = requireNode("pdf2json");
-  const PDFParserCtor = (mod && (mod.PDFParser || mod.default)) || mod;
+  const pdfParse = requireNode("pdf-parse"); // CommonJS function
 
-  return new Promise((resolve, reject) => {
-    const pdfParser = new PDFParserCtor();
-    pdfParser.on("pdfParser_dataError", (err: any) =>
-      reject(err?.parserError || err || new Error("pdf2json error"))
-    );
-    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
-      const pages = (pdfData?.Pages || []).map((page: any, idx: number) => {
-        let text = "";
-        const texts = page?.Texts || [];
-        for (const t of texts) {
-          const runs = t?.R || [];
-          for (const r of runs) {
-            if (typeof r.T === "string") text += decodeURIComponent(r.T) + " ";
-          }
-        }
-        return { page: idx + 1, text: text.replace(/\s+/g, " ").trim() };
-      });
-      resolve(pages);
-    });
-    pdfParser.parseBuffer(buf);
-  });
+  const pages: string[] = [];
+  const options = {
+    pagerender: (pageData: any) => {
+      return pageData
+        .getTextContent({
+          normalizeWhitespace: true,
+          disableCombineTextItems: false
+        })
+        .then((tc: any) => {
+          const text = (tc.items || [])
+            .map((it: any) => (typeof it.str === "string" ? it.str : ""))
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+          pages.push(text);
+          // Return value is concatenated by pdf-parse; we still keep our per-page array
+          return text + "\n";
+        });
+    }
+  };
+
+  await pdfParse(buf, options);
+  return pages.map((text, i) => ({ page: i + 1, text }));
 }
