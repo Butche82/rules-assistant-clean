@@ -47,9 +47,7 @@ async function embed(texts: string[]): Promise<Float32Array[]> {
 }
 
 function cosineSim(a: Float32Array, b: Float32Array) {
-  let dot = 0,
-    na = 0,
-    nb = 0;
+  let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     na += a[i] * a[i];
@@ -64,9 +62,9 @@ export function resetIndex() {
 }
 
 export async function indexPdfForGame(gameId: string, title: string, url: string): Promise<boolean> {
+  const { fetchPdf } = await import("./pdf");          // ⬅️ runtime import
   const buf = await fetchPdf(url);
   if (!buf) return false;
-  // ⬇️ Call the 3-arg buffer indexer
   return indexPdfBufferForGame(gameId, title, buf);
 }
 
@@ -76,7 +74,9 @@ export async function indexPdfBufferForGame(
   title: string,
   buf: Buffer
 ): Promise<boolean> {
+  const { extractTextByPage } = await import("./pdf"); // ⬅️ runtime import
   const pages = await extractTextByPage(buf);
+
   const toEmbed: string[] = [];
   const newRows: Row[] = [];
   const hash = createHash("sha1").update(buf).digest("hex");
@@ -88,7 +88,7 @@ export async function indexPdfBufferForGame(
       newRows.push({
         game_id: gameId,
         game_title: title,
-        source_url: `doc://${hash}`, // generic; we’re indexing from a buffer
+        source_url: `doc://${hash}`, // generic; indexing from a buffer
         page: p.page,
         text: c,
         doc_hash: hash,
