@@ -1,4 +1,5 @@
 // lib/pdf.ts
+import { createRequire } from "module";
 
 // Fetch PDF bytes from a URL
 export async function fetchPdf(url: string): Promise<Buffer | null> {
@@ -14,16 +15,17 @@ export async function fetchPdf(url: string): Promise<Buffer | null> {
   }
 }
 
-// Extract text per page using pdf2json (loaded via dynamic import)
+// Extract text per page using pdf2json (required at runtime from node_modules)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
   const buf: Buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
 
-  // Dynamic import so Next *ships* (via serverExternalPackages) but does not bundle
-  const mod: any = await import("pdf2json");
-  const PDFParserCtor =
-    (mod && (mod.PDFParser || mod.default)) || mod;
+  // Force real Node resolution from app root (node_modules)
+  const requireNode = createRequire(process.cwd() + "/");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = requireNode("pdf2json");
+  const PDFParserCtor = (mod && (mod.PDFParser || mod.default)) || mod;
 
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParserCtor();
