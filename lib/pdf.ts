@@ -1,31 +1,17 @@
-// lib/pdf.ts
+// lib/pdf.ts (only the loader bit changes)
 
-// Fetch PDF bytes from a URL
-export async function fetchPdf(url: string): Promise<Buffer | null> {
-  try {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) return null;
-    const ab = await r.arrayBuffer();
-    const buf = Buffer.from(ab);
-    if (buf.length < 1024) return null;
-    return buf;
-  } catch {
-    return null;
-  }
-}
+// ...same fetchPdf above...
 
-// Extract text per page using pdf2json (loaded via runtime require)
 export async function extractTextByPage(
   input: Buffer | Uint8Array
 ): Promise<{ page: number; text: string }[]> {
-  // pdf2json expects a Buffer
   const buf: Buffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
 
-  // 👇 prevent webpack from bundling pdf2json; load from node_modules at runtime
-  const req: any = (eval as any)("require");
-  const mod: any = req("pdf2json");
-  const PDFParserCtor =
-    (mod && (mod.default || (mod as any).PDFParser)) || (mod as any);
+  // 👇 static require so Next's output-file-tracing sees it
+  // (do NOT move this to the top of the file)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require("pdf2json");
+  const PDFParserCtor = (mod && (mod.PDFParser || mod.default)) || mod;
 
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParserCtor();
@@ -38,9 +24,7 @@ export async function extractTextByPage(
         const texts = page?.Texts || [];
         for (const t of texts) {
           const runs = t?.R || [];
-          for (const r of runs) {
-            if (typeof r.T === "string") text += decodeURIComponent(r.T) + " ";
-          }
+          for (const r of runs) if (typeof r.T === "string") text += decodeURIComponent(r.T) + " ";
         }
         return { page: idx + 1, text: text.replace(/\s+/g, " ").trim() };
       });
